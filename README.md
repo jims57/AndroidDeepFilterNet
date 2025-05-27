@@ -26,7 +26,13 @@ Add the following to your app's `build.gradle` file:
 
 ```gradle
 dependencies {
-    implementation 'com.kaleyra.video:deepfilternet:x.y.z'
+    // Option 1: Use DeepFilterNet with the model bundled directly in the library.
+    // Choose this if you prefer a self-contained solution and are okay with a larger app size.
+    implementation 'io.github.kaleyravideo:android-deepfilternet:x.y.z'
+
+    // Option 2: Use DeepFilterNet with the model downloaded on demand during initialization.
+    // Choose this if you want to minimize initial app size and download the model only when needed.
+    implementation 'io.github.kaleyravideo:android-deepfilternet-lazymodel:x.y.z'
 }
 ```
 
