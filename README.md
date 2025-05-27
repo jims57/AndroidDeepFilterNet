@@ -1,4 +1,4 @@
-<img width="747" alt="image" src="https://github.com/user-attachments/assets/c7d9af06-e00d-4167-a51e-6a9c8ffe4b6b" />[![Release Version](https://img.shields.io/maven-central/v/io.github.kaleyravideo/android-deepfilternet?color=0881BE)](https://central.sonatype.com/artifact/io.github.kaleyravideo/android-deepfilternet)
+[![Release Version](https://img.shields.io/maven-central/v/io.github.kaleyravideo/android-deepfilternet?color=0881BE)](https://central.sonatype.com/artifact/io.github.kaleyravideo/android-deepfilternet)
 [![Android CI](https://github.com/KaleyraVideo/AndroidDeepFilterNet/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/KaleyraVideo/AndroidDeepFilterNet/actions/workflows/tests.yml)
 # Android DeepFilterNet
 
