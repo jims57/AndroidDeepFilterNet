@@ -17,7 +17,6 @@ dependencyResolutionManagement {
         google()
         mavenLocal()
         mavenCentral()
-        maven { url = uri("https://maven.bandyer.com/releases") }
     }
 }
 

@@ -5,8 +5,8 @@ import android.util.Log
 import com.kaleyra.noise_filter.DeepFilterNet
 import com.kaleyra.noise_filter.DefaultDeepFilterModelLoader
 import com.kaleyra.noise_filter.model_loader.DeepFilterModelLoader
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
-import com.kaleyra.video_utils.dispatcher.StandardDispatchers
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
+import com.kaleyra.noise_filter.dispatcher.StandardDispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

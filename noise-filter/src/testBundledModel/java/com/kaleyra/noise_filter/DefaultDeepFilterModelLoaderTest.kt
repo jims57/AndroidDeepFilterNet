@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.res.Resources
 import com.kaleyra.noise_filter.mock.MockLog
 import com.kaleyra.noise_filter.model_loader.DeepFilterModelLoader
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic

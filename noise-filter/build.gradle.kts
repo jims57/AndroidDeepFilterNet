@@ -285,7 +285,6 @@ dependencies {
     dokkaPlugin(libs.jetbrains.dokka)
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kaleyra.video.utils)
     implementation(libs.jetbrains.coroutines.core)
 
     "lazyModelImplementation"(libs.ktor.client.core)

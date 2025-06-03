@@ -11,7 +11,6 @@ kotlinxSerializationJson = "1.6.3"
 ktorClientCore = "2.3.8"
 ktorClientMock = "2.3.10"
 material = "1.7.0"
-kaleyraVideoUtils = "2.1.0"
 dokka = "1.9.20"
 jk1LicenseReport = "2.9"
 mockk = "1.13.10"
@@ -36,7 +35,6 @@ ktor-client-logging-jvm = { module = "io.ktor:ktor-client-logging-jvm", version.
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktorClientMock" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktorClientCore" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
-kaleyra-video-utils = { group = "com.kaleyra", name = "video-utils", version.ref = "kaleyraVideoUtils" }
 jetbrains-dokka = { group = "org.jetbrains.dokka", name = "android-documentation-plugin", version.ref = "dokka"}
 jetbrains-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines"}
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

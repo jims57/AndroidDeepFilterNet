@@ -1,10 +1,10 @@
 package fetcher
 
 import android.util.Log
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
+import com.kaleyra.noise_filter.dispatcher.StandardDispatchers
 import utils.Sha256FileHashCalculator
 import utils.StandardSha256FileHashCalculator
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
-import com.kaleyra.video_utils.dispatcher.StandardDispatchers
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get

@@ -1,8 +1,8 @@
 package com.kaleyra.noise_filter.fetcher
 
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
 import com.kaleyra.noise_filter.mock.MockLog
 import utils.Sha256FileHashCalculator
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
 import fetcher.S3ModelFetcher
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine

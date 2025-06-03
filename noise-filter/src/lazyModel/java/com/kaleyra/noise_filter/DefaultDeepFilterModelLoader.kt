@@ -2,10 +2,10 @@ package com.kaleyra.noise_filter
 
 import android.content.Context
 import android.util.Log
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
+import com.kaleyra.noise_filter.dispatcher.StandardDispatchers
 import com.kaleyra.noise_filter.model_loader.DeepFilterModelLoader
 import fetcher.S3ModelFetcher
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
-import com.kaleyra.video_utils.dispatcher.StandardDispatchers
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.withContext

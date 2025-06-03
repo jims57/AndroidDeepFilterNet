@@ -35,6 +35,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Run unit tests for main module
+        run: ./gradlew testDebugUnitTest
+
       - name: Run unit tests for ${{ matrix.flavor }} flavor
         run: ./gradlew test${{ matrix.flavor }}DebugUnitTest
 

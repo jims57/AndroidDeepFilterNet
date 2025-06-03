@@ -1,8 +1,8 @@
 package com.kaleyra.noise_filter
 
 import android.content.Context
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
 import com.kaleyra.noise_filter.mock.MockLog
-import com.kaleyra.video_utils.dispatcher.DispatcherProvider
 import fetcher.S3ModelFetcher
 import io.ktor.client.HttpClient
 import io.mockk.Runs

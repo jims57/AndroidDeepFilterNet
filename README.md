@@ -25,12 +25,6 @@ DeepFilterNet is a state-of-the-art neural network architecture designed for rea
 Add the following to your app's `build.gradle` file:
 
 ```gradle
-allprojects {
-    repositories {
-        maven { url 'https://maven.bandyer.com/releases' }
-    }
-}
-
 dependencies {
     // Option 1: Use DeepFilterNet with the model bundled directly in the library.
     // Choose this if you prefer a self-contained solution and are okay with a larger app size.
