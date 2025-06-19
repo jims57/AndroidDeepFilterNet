@@ -21,5 +21,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "AndroidDeepFilterNet"
-include(":app")
-include(":noise-filter")
+include(":app", ":noise-filter")
