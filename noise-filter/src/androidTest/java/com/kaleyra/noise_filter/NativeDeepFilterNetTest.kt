@@ -2,6 +2,10 @@ package com.kaleyra.noise_filter
 
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
+import com.kaleyra.noise_filter.dispatcher.DispatcherProvider
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -19,10 +23,24 @@ class NativeDeepFilterNetTest {
     private lateinit var context: Context
     private lateinit var deepFilterNet: DeepFilterNet
 
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private val dispatcherProvider = object : DispatcherProvider {
+        override val main: CoroutineDispatcher
+            get() = testDispatcher
+        override val mainImmediate: CoroutineDispatcher
+            get() = testDispatcher
+        override val io: CoroutineDispatcher
+            get() = testDispatcher
+        override val default: CoroutineDispatcher
+            get() = testDispatcher
+    }
+
     @Before
     fun setup() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
-        deepFilterNet = com.rikorose.deepfilternet.NativeDeepFilterNet(context)
+        deepFilterNet = com.rikorose.deepfilternet.NativeDeepFilterNet(
+            context, dispatchers = dispatcherProvider
+        )
     }
 
     @After
@@ -144,7 +162,7 @@ class NativeDeepFilterNetTest {
     @Test
     fun testModelNotLoaded() {
         // Create a new instance without waiting for load.
-        val notLoaded = com.rikorose.deepfilternet.NativeDeepFilterNet(context)
+        val notLoaded = com.rikorose.deepfilternet.NativeDeepFilterNet(context, dispatchers = dispatcherProvider)
         assertEquals(-1L, notLoaded.frameLength)
         assertEquals(-1f, notLoaded.processFrame(ByteBuffer.allocateDirect(10)))
     }
