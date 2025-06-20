@@ -68,7 +68,6 @@ class DefaultDeepAudioFilter(
 
             // The required frame length for processing with DeepFilterNet.
             val frameLength = currentDeepFilterNet.frameLength.toInt()
-            Log.e("FrameLength", "$frameLength")
             // Chunk the input audio data into segments required by DeepFilterNet.
             val rawAudioChunks = audioChunker.chunk(sourceAudio, frameLength)
 
