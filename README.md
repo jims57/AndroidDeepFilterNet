@@ -43,23 +43,32 @@ The model size is ~8MB.
 ### Basic Usage
 
 ```kotlin
-// Initialize the DeepFilterNet instance
+// Initialize the DeepFilterNet instance.
 val deepFilterNet = com.rikorose.deepfilternet.NativeDeepFilterNet(context)
-
-// Set the noise attenuation level (dB)
+// Set the noise attenuation level (dB).
 deepFilterNet.setAttenuationLimit(30f)
 
-// Retrieve the audio byte buffer according to your implementation;
-// this example uses a callback.
-val bufferCallback = object: YourBufferCallback { byteBuffer ->
-    // Call the 'processFrame' function on the DeepFilterNet object,
-    // passing the received 'byteBuffer' as an argument.
-    deepFilterNet.processFrame(byteBuffer)
+..
+
+// Get the DeepFilterNet's frame length.
+val frameLength = deepFilterNet.frameLength.toInt()
+// Allocate a new direct ByteBuffer with the given frame length to interact with the native code.
+val byteBuffer = ByteBuffer.allocateDirect(frameLength).apply {
+    order(ByteOrder.LITTLE_ENDIAN) // Set byte order to match DeepFilterNet's expectation
 }
 
-// Release resources when done
+..
+
+// Process the audio frame using the DeepFilterNet model.
+// The 'processFrame' method modifies the buffer in-place.
+deepFilterNet.processFrame(byteBuffer)
+    
+..
+
+// Release resources when done.
 deepFilterNet.release()
 ```
+For a full example, click [here](https://github.com/KaleyraVideo/AndroidDeepFilterNet/blob/main/app/src/main/java/com/kaleyra/androiddeepfilternet/filter/DeepAudioFilter.kt).
 
 ## Documentation
 
@@ -73,6 +82,11 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 This project is built upon a [fork](https://github.com/KaleyraVideo/DeepFilterNet) of the original [DeepFilterNet](https://github.com/rikorose/DeepFilterNet) work by Hendrik Schröter.<br/>
 Further information regarding the optimization process of the DeepFilterNet model for running on a mobile device is available in this [document](https://github.com/KaleyraVideo/DeepFilterNet/blob/main/models/deepfilternet_model_optimization.md).
+
+## Demo app audio samples
+
+- Voice generated with [Narakeet](https://www.narakeet.com/).
+- Background noise from [Soundjay](https://www.soundjay.com/).
 
 ## Contact
 
