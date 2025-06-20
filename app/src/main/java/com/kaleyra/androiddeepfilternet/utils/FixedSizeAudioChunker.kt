@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.utils
 
 /**
  * Interface defining the contract for chunking a ByteArray into fixed-size smaller ByteArrays.

@@ -1,7 +1,8 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.utils
 
 import android.content.Context
 import android.util.Log
+import com.kaleyra.androiddeepfilternet.filter.DeepAudioFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

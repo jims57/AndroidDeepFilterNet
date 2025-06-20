@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.ui.screen
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -66,12 +65,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.kaleyra.androiddeepfilternet.ui.viewmodel.MainViewModel
+import com.kaleyra.androiddeepfilternet.ui.viewmodel.NoiseFilterUiState
+import com.kaleyra.androiddeepfilternet.ui.viewmodel.NoisyAudioSource
+import com.kaleyra.androiddeepfilternet.ui.viewmodel.PlaybackState
+import com.kaleyra.androiddeepfilternet.ui.viewmodel.UserIntent
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
 fun NoiseFilterDemoScreen(
-    viewModel: NoiseFilterViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

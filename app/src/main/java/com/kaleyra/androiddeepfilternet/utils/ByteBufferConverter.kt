@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.utils
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

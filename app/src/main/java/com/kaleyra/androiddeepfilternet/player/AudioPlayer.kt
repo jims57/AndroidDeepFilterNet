@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.player
 
 interface AudioProgressCallback {
     fun onProgressUpdate(currentPosition: Long, totalDuration: Long)

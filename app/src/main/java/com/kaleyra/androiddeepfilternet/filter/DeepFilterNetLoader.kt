@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.filter
 
 import android.content.Context
 import com.kaleyra.noise_filter.DeepFilterNet

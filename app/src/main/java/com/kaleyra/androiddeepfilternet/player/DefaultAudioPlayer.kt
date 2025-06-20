@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.player
 
 import android.content.Context
 import android.os.Handler

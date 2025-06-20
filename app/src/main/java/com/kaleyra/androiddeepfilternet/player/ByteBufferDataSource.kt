@@ -1,4 +1,4 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.player
 
 import android.net.Uri
 import androidx.media3.common.C

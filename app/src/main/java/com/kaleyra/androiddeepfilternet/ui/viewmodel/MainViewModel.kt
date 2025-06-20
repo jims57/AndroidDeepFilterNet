@@ -1,9 +1,15 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.ui.viewmodel
 
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaleyra.androiddeepfilternet.player.AudioPlayer
+import com.kaleyra.androiddeepfilternet.player.AudioProgressCallback
+import com.kaleyra.androiddeepfilternet.utils.AudioVariantGenerator
+import com.kaleyra.androiddeepfilternet.player.DefaultAudioPlayer
+import com.kaleyra.androiddeepfilternet.filter.DefaultDeepAudioFilter
+import com.kaleyra.androiddeepfilternet.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -52,7 +58,7 @@ sealed class UserIntent {
     data class AttenuationLevel(val value: Float) : UserIntent()
 }
 
-class NoiseFilterViewModel(application: Application) : AndroidViewModel(application) {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         const val TAG = "NoiseFilterViewModel"
@@ -165,11 +171,14 @@ class NoiseFilterViewModel(application: Application) : AndroidViewModel(applicat
             audioPlayer.clearMediaSources()
             val application = getApplication<Application>()
             val deferredAirplaneBuffer =
-                async { audioVariantGenerator.generateVariants(application, R.raw.airplane, attenuationLevel) }
+                async { audioVariantGenerator.generateVariants(application,
+                    R.raw.airplane, attenuationLevel) }
             val deferredCrowdBuffer =
-                async { audioVariantGenerator.generateVariants(application, R.raw.crowd, attenuationLevel) }
+                async { audioVariantGenerator.generateVariants(application,
+                    R.raw.crowd, attenuationLevel) }
             val deferredRestaurantBuffer =
-                async { audioVariantGenerator.generateVariants(application, R.raw.restaurant, attenuationLevel) }
+                async { audioVariantGenerator.generateVariants(application,
+                    R.raw.restaurant, attenuationLevel) }
             val (airplaneAudioBuffer, crowdAudioBuffer, restaurantAudioBuffer) = awaitAll(
                 deferredAirplaneBuffer,
                 deferredCrowdBuffer,

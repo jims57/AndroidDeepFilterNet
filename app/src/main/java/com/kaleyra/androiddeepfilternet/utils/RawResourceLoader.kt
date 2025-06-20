@@ -1,15 +1,13 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.utils
 
 import android.content.Context
 import android.content.res.Resources
 import android.util.Log
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream

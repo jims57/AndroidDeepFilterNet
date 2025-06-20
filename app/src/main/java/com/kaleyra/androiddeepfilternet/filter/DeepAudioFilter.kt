@@ -1,7 +1,9 @@
-package com.kaleyra.androiddeepfilternet
+package com.kaleyra.androiddeepfilternet.filter
 
 import android.content.Context
 import android.util.Log
+import com.kaleyra.androiddeepfilternet.utils.DefaultFixedSizeAudioChunker
+import com.kaleyra.androiddeepfilternet.utils.FixedSizeAudioChunker
 import com.kaleyra.noise_filter.DeepFilterNet
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
@@ -50,10 +52,6 @@ class DefaultDeepAudioFilter(
     constructor(context: Context) : this(NativeDeepFilterNetLoader(context))
 
     companion object {
-        // The required sample size for processing individual frames with DeepFilterNet.
-        // This is a fixed size dictated by the DeepFilterNet model's architecture.
-        private const val DEEP_FILTER_NET_REQUIRED_SAMPLE_SIZE = 960
-
         private const val TAG = "DefaultDeepAudioFilter"
     }
 
@@ -68,11 +66,14 @@ class DefaultDeepAudioFilter(
             currentDeepFilterNet = deepFilterNetLoader.loadDeepFilterNet()
             currentDeepFilterNet.setAttenuationLimit(attenuationLimit)
 
+            // The required frame length for processing with DeepFilterNet.
+            val frameLength = currentDeepFilterNet.frameLength.toInt()
+            Log.e("FrameLength", "$frameLength")
             // Chunk the input audio data into segments required by DeepFilterNet.
-            val rawAudioChunks = audioChunker.chunk(sourceAudio, DEEP_FILTER_NET_REQUIRED_SAMPLE_SIZE)
+            val rawAudioChunks = audioChunker.chunk(sourceAudio, frameLength)
 
             // Calculate the total size needed for the output audio buffer.
-            val outputBufferSize = rawAudioChunks.size * DEEP_FILTER_NET_REQUIRED_SAMPLE_SIZE
+            val outputBufferSize = rawAudioChunks.size * frameLength
             // Allocate a ByteBuffer to store the combined filtered audio data.
             val outputAudioBuffer = ByteBuffer.allocate(outputBufferSize)
             outputAudioBuffer.order(ByteOrder.LITTLE_ENDIAN) // Set byte order
@@ -86,7 +87,7 @@ class DefaultDeepAudioFilter(
             // 1. Reusing a single `frameProcessingBuffer` at the class level and externally
             //    serializing calls to `filter` on this instance (e.g., using a Mutex).
             // 2. Implementing a custom pool of direct ByteBuffers for reuse.
-            val frameProcessingBuffer = ByteBuffer.allocateDirect(DEEP_FILTER_NET_REQUIRED_SAMPLE_SIZE).apply {
+            val frameProcessingBuffer = ByteBuffer.allocateDirect(frameLength).apply {
                 order(ByteOrder.LITTLE_ENDIAN) // Set byte order to match DeepFilterNet's expectation
             }
 
