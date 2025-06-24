@@ -14,11 +14,16 @@ DeepFilterNet is a state-of-the-art neural network architecture designed for rea
 - JNI bindings for efficient integration with native Android code
 - Optimized for mobile performance
 
-## Requirements
+## Library Requirements
 
 - Android API level 21+ (Android 5.0 or higher)
 - Android NDK r21+
 - Gradle 7.0+
+
+## Audio Requirements
+* **Sample Rate:** 48 kHz
+* **Audio Depth:** 16-bit PCM
+* **Channels:** Mono
 
 ## Installation
 
