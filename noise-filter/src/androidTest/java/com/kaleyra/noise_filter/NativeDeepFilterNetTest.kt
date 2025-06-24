@@ -173,7 +173,7 @@ class NativeDeepFilterNetTest {
         signalAmplitude: Double = 0.5,
         noiseAmplitude: Double = 0.3
     ): ByteBuffer {
-        val buffer = ByteBuffer.allocateDirect(size * 2) // 16-bit PCM
+        val buffer = ByteBuffer.allocateDirect(size)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
 
         val random = Random(System.currentTimeMillis())
@@ -183,8 +183,11 @@ class NativeDeepFilterNetTest {
         val sampleRate = 16000.0
         val phaseStep = 2.0 * Math.PI * signalFrequency / sampleRate
 
+        // Calculate the number of samples based on the total byte size (16-bit = 2 bytes/sample)
+        val numberOfSamples = size / 2
+
         // Generate sinusoidal signal + noise
-        for (i in 0 until size) {
+        for (i in 0 until numberOfSamples) { // Loop for the number of samples, not bytes
             // Sinusoidal signal
             val signal = signalAmplitude * sin(i * phaseStep)
 
@@ -195,6 +198,7 @@ class NativeDeepFilterNetTest {
             val sample = (signal + noise).coerceIn(-1.0, 1.0)
 
             // Convert to 16-bit sample and write to buffer
+            // Short.MAX_VALUE is 32767, Short.MIN_VALUE is -32768
             val sampleShort = (sample * Short.MAX_VALUE).toInt().toShort()
             buffer.putShort(sampleShort)
         }
