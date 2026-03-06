@@ -16,7 +16,8 @@
             android:name=".ui.activity.MainActivity"
             android:exported="true"
             android:label="@string/title_activity_main"
-            android:theme="@style/Theme.AndroidDeepFilterNet">
+            android:theme="@style/Theme.AndroidDeepFilterNet"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER" />

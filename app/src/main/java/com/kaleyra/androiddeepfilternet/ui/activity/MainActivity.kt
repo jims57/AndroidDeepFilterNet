@@ -1,23 +1,421 @@
 package com.kaleyra.androiddeepfilternet.ui.activity
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.SeekBar
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
-import com.kaleyra.androiddeepfilternet.ui.screen.NoiseFilterDemoScreen
-import com.kaleyra.androiddeepfilternet.ui.theme.AndroidDeepFilterNetTheme
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.kaleyra.androiddeepfilternet.R
+import com.kaleyra.androiddeepfilternet.filter.DefaultDeepAudioFilter
+import com.kaleyra.androiddeepfilternet.player.AudioPlayer
+import com.kaleyra.androiddeepfilternet.player.AudioProgressCallback
+import com.kaleyra.androiddeepfilternet.player.DefaultAudioPlayer
+import com.kaleyra.androiddeepfilternet.utils.AudioVariantGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class MainActivity : ComponentActivity() {
+/**
+ * DeepFilterNet降噪播放器 - 参考Mp3Fragment的UI和交互模式
+ * 使用RecyclerView显示音频列表，底部播放器控制面板
+ * 选中音频后按需加载和降噪处理，即时播放
+ * Author: Jimmy Gan
+ * Date: 2026-03-06
+ */
+class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "DeepFilterNetPlayer"
+        private const val SEEK_OFFSET_MS = 5_000L
+    }
+
+    // UI组件
+    private lateinit var rvAudioList: RecyclerView
+    private lateinit var seekBarProgress: SeekBar
+    private lateinit var tvCurrentTime: TextView
+    private lateinit var tvTotalTime: TextView
+    private lateinit var btnDenoise: TextView
+    private lateinit var btnPrev5s: Button
+    private lateinit var btnPlayPause: TextView
+    private lateinit var btnNext5s: Button
+    private lateinit var btnAttenuation: TextView
+
+    // 数据
+    data class AudioItem(val name: String, val resId: Int)
+    private val audioItems = listOf(
+        AudioItem("Airplane noise", R.raw.airplane),
+        AudioItem("Crowd noise", R.raw.crowd),
+        AudioItem("Restaurant noise", R.raw.restaurant),
+        AudioItem("Client audio", R.raw.client_audio_2)
+    )
+    private var selectedIndex = -1
+    private lateinit var adapter: AudioListAdapter
+
+    // 播放器
+    private lateinit var audioPlayer: AudioPlayer
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var isProgressTracking = false
+
+    // DeepFilterNet降噪
+    private lateinit var deepAudioFilter: DefaultDeepAudioFilter
+    private lateinit var audioVariantGenerator: AudioVariantGenerator
+
+    // 降噪状态
+    private var isDenoiseEnabled = false
+    private var currentAttenuationLevel = 50f
+
+    // 加载状态控制
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var loadJob: Job? = null
+    @Volatile private var isLoading = false
+    @Volatile private var loadingIndex = -1
+
+    // 已加载的音频源缓存: resId -> 是否已加载noisy和filtered
+    private val loadedAudioSources = mutableMapOf<String, Boolean>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            AndroidDeepFilterNetTheme {
-                NoiseFilterDemoScreen()
+        setContentView(R.layout.activity_main)
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
+        // 初始化DeepFilterNet
+        deepAudioFilter = DefaultDeepAudioFilter(applicationContext)
+        audioVariantGenerator = AudioVariantGenerator(deepAudioFilter)
+
+        // 初始化播放器
+        audioPlayer = DefaultAudioPlayer(applicationContext)
+        audioPlayer.setAudioProgressCallback(object : AudioProgressCallback {
+            override fun onProgressUpdate(currentPosition: Long, totalDuration: Long) {
+                mainHandler.post {
+                    if (!isProgressTracking && totalDuration > 0) {
+                        val progress = (currentPosition.toDouble() / totalDuration * 1000).toInt()
+                        seekBarProgress.progress = progress.coerceIn(0, 1000)
+                    }
+                    tvCurrentTime.text = formatTime(currentPosition)
+                    tvTotalTime.text = "-${formatTime((totalDuration - currentPosition).coerceAtLeast(0))}"
+                }
+            }
+
+            override fun onAudioCompleted() {
+                audioPlayer.stop()
+                mainHandler.post {
+                    handlePlaybackCompleted()
+                }
+            }
+        })
+
+        setupUI()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
+        audioPlayer.release()
+        audioVariantGenerator.clearCache()
+    }
+
+    private fun setupUI() {
+        rvAudioList = findViewById(R.id.rvAudioList)
+        seekBarProgress = findViewById(R.id.seekBarProgress)
+        tvCurrentTime = findViewById(R.id.tvCurrentTime)
+        tvTotalTime = findViewById(R.id.tvTotalTime)
+        btnDenoise = findViewById(R.id.btnDenoise)
+        btnPrev5s = findViewById(R.id.btnPrev5s)
+        btnPlayPause = findViewById(R.id.btnPlayPause)
+        btnNext5s = findViewById(R.id.btnNext5s)
+        btnAttenuation = findViewById(R.id.btnAttenuation)
+
+        // 初始状态：播放按钮禁用
+        btnPlayPause.isEnabled = false
+
+        // 设置RecyclerView - 列表立即显示
+        adapter = AudioListAdapter(audioItems) { position ->
+            // 立即更新选中状态UI
+            selectedIndex = position
+            adapter.setSelectedIndex(position)
+            loadingIndex = position
+
+            // 停止当前播放
+            stopPlayback()
+            btnPlayPause.isEnabled = false
+
+            // 后台加载选中音频的noisy和filtered数据
+            if (isLoading) {
+                Log.i(TAG, "正在加载中，更新目标索引: $position")
+                return@AudioListAdapter
+            }
+
+            isLoading = true
+            loadJob?.cancel()
+            loadJob = coroutineScope.launch {
+                try {
+                    while (true) {
+                        val currentLoadIndex = loadingIndex
+                        loadAudioSource(currentLoadIndex)
+                        if (loadingIndex == currentLoadIndex) break
+                        Log.i(TAG, "检测到新选择，切换加载: $loadingIndex")
+                    }
+                } finally {
+                    isLoading = false
+                    btnPlayPause.isEnabled = true
+                }
+            }
+        }
+        rvAudioList.layoutManager = LinearLayoutManager(this)
+        rvAudioList.adapter = adapter
+
+        // 进度条
+        seekBarProgress.max = 1000
+        seekBarProgress.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val duration = audioPlayer.getCurrentTrackDuration()
+                    if (duration > 0) {
+                        val targetMs = (progress / 1000.0 * duration).toLong()
+                        audioPlayer.seekTo(targetMs)
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar) { isProgressTracking = true }
+            override fun onStopTrackingTouch(seekBar: SeekBar) { isProgressTracking = false }
+        })
+
+        // 播放/暂停按钮
+        btnPlayPause.setOnClickListener {
+            if (selectedIndex < 0) return@setOnClickListener
+            val item = audioItems[selectedIndex]
+            val mediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
+
+            if (audioPlayer.isPlaying()) {
+                audioPlayer.pause()
+                btnPlayPause.text = "播放"
+            } else {
+                audioPlayer.start(id = mediaId, resetPosition = false)
+                btnPlayPause.text = "暂停"
+            }
+        }
+
+        // 后退5s
+        btnPrev5s.setOnClickListener {
+            val pos = audioPlayer.getCurrentTrackPosition() - SEEK_OFFSET_MS
+            audioPlayer.seekTo(pos.coerceAtLeast(0))
+        }
+
+        // 前进5s
+        btnNext5s.setOnClickListener {
+            val pos = audioPlayer.getCurrentTrackPosition() + SEEK_OFFSET_MS
+            audioPlayer.seekTo(pos)
+        }
+
+        // 降噪开关按钮
+        btnDenoise.setOnClickListener { showDenoiseDialog() }
+
+        // 衰减级别按钮
+        btnAttenuation.setOnClickListener { showAttenuationDialog() }
+
+        // 更新UI显示
+        updateDenoiseButtonText()
+        updateAttenuationButtonText()
+    }
+
+    /**
+     * 加载单个音频源的noisy和filtered数据
+     * 在后台线程执行，加载完成后可立即播放
+     */
+    private suspend fun loadAudioSource(index: Int) {
+        if (index < 0 || index >= audioItems.size) return
+        val item = audioItems[index]
+        val noisyId = getMediaSourceId(item.resId, false)
+        val filteredId = getMediaSourceId(item.resId, true)
+
+        Log.i(TAG, "开始加载音频: ${item.name}")
+
+        withContext(Dispatchers.IO) {
+            val dualBuffer = audioVariantGenerator.generateVariants(
+                applicationContext, item.resId, currentAttenuationLevel
+            )
+            if (dualBuffer != null) {
+                withContext(Dispatchers.Main) {
+                    // 先清除旧的同名源，再添加新的
+                    audioPlayer.addMediaSource(noisyId, dualBuffer.noisyBuffer.array())
+                    audioPlayer.addMediaSource(filteredId, dualBuffer.filteredBuffer.array())
+                    loadedAudioSources[noisyId] = true
+                    loadedAudioSources[filteredId] = true
+                    Log.i(TAG, "音频加载完成: ${item.name}")
+                }
+            } else {
+                Log.e(TAG, "音频加载失败: ${item.name}")
             }
         }
     }
+
+    private fun stopPlayback() {
+        audioPlayer.stop()
+        btnPlayPause.text = "播放"
+        seekBarProgress.progress = 0
+        tvCurrentTime.text = "00:00"
+        tvTotalTime.text = "-00:00"
+    }
+
+    private fun handlePlaybackCompleted() {
+        btnPlayPause.text = "播放"
+        seekBarProgress.progress = 0
+        tvCurrentTime.text = "00:00"
+        tvTotalTime.text = "-00:00"
+    }
+
+    /**
+     * 显示降噪开关对话框
+     */
+    private fun showDenoiseDialog() {
+        val labels = arrayOf("关闭降噪", "开启降噪")
+        val currentIndex = if (isDenoiseEnabled) 1 else 0
+
+        AlertDialog.Builder(this)
+            .setTitle("降噪设置")
+            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                val newEnabled = which == 1
+                if (newEnabled != isDenoiseEnabled) {
+                    isDenoiseEnabled = newEnabled
+                    updateDenoiseButtonText()
+
+                    // 如果正在播放，切换到对应的音频源
+                    if (audioPlayer.isPlaying() && selectedIndex >= 0) {
+                        val item = audioItems[selectedIndex]
+                        val mediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
+                        if (loadedAudioSources[mediaId] == true) {
+                            audioPlayer.start(id = mediaId, resetPosition = false)
+                        }
+                    }
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /**
+     * 显示衰减级别对话框
+     */
+    private fun showAttenuationDialog() {
+        val levels = arrayOf("0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100")
+        val currentIndex = levels.indexOfFirst { it.toFloat() == currentAttenuationLevel }.coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle("衰减级别 (Attenuation)")
+            .setSingleChoiceItems(levels, currentIndex) { dialog, which ->
+                val newLevel = levels[which].toFloat()
+                if (newLevel != currentAttenuationLevel) {
+                    currentAttenuationLevel = newLevel
+                    updateAttenuationButtonText()
+
+                    // 如果已选中音频，重新加载当前音频（使用新衰减级别）
+                    if (selectedIndex >= 0) {
+                        val wasPlaying = audioPlayer.isPlaying()
+                        stopPlayback()
+                        btnPlayPause.isEnabled = false
+                        loadedAudioSources.clear()
+                        audioPlayer.clearMediaSources()
+
+                        loadJob?.cancel()
+                        loadJob = coroutineScope.launch {
+                            loadAudioSource(selectedIndex)
+                            btnPlayPause.isEnabled = true
+                            // 如果之前在播放，自动恢复播放
+                            if (wasPlaying) {
+                                val item = audioItems[selectedIndex]
+                                val mediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
+                                audioPlayer.start(id = mediaId, resetPosition = true)
+                                btnPlayPause.text = "暂停"
+                            }
+                        }
+                    }
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun updateDenoiseButtonText() {
+        btnDenoise.text = if (isDenoiseEnabled) "降噪:开" else "降噪:关"
+    }
+
+    private fun updateAttenuationButtonText() {
+        btnAttenuation.text = "衰减:${currentAttenuationLevel.toInt()}"
+    }
+
+    private fun getMediaSourceId(resId: Int, isDenoiseEnabled: Boolean): String {
+        return "${resId}_${if (isDenoiseEnabled) "filtered" else "noisy"}"
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSeconds = (ms / 1000).toInt()
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    // RecyclerView Adapter
+    class AudioListAdapter(
+        private val items: List<AudioItem>,
+        private val onItemClick: (Int) -> Unit
+    ) : RecyclerView.Adapter<AudioListAdapter.ViewHolder>() {
+
+        private var selectedIndex = -1
+
+        fun setSelectedIndex(index: Int) {
+            val oldIndex = selectedIndex
+            selectedIndex = index
+            if (oldIndex >= 0) notifyItemChanged(oldIndex)
+            if (index >= 0) notifyItemChanged(index)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(android.R.layout.simple_list_item_1, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.textView.text = items[position].name
+            if (position == selectedIndex) {
+                holder.textView.setTextColor(0xFF007AFF.toInt())
+                holder.textView.setCompoundDrawablesWithIntrinsicBounds(0, 0,
+                    android.R.drawable.checkbox_on_background, 0)
+            } else {
+                holder.textView.setTextColor(0xFF000000.toInt())
+                holder.textView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            }
+            holder.itemView.setOnClickListener { onItemClick(position) }
+        }
+
+        override fun getItemCount() = items.size
+
+        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            val textView: TextView = itemView.findViewById(android.R.id.text1)
+        }
+    }
 }
-
-
