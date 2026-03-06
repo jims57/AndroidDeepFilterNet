@@ -1,0 +1,32 @@
+(base) mac@Jimmy-Macbook-Pro AndroidDeepFilterNet % adb logcat | grep -E "WQDeepFilterNet"
+03-06 11:13:28.086  4174  4174 I WQDeepFilterNet: 选中音频: Client audio, index=3
+03-06 11:13:28.152  4174  4174 I WQDeepFilterNet: 开始加载原始音频: Client audio
+03-06 11:13:28.500  4174  4174 I WQDeepFilterNet: 原始音频加载完成: Client audio, size=40729038
+03-06 11:13:28.501  4174  4174 I WQDeepFilterNet: 原始音频就绪，播放按钮已启用
+03-06 11:13:28.502  4174  4174 I WQDeepFilterNet: 开始DeepFilterNet降噪处理: Client audio, attenuation=50.0, rawDataSize=40729038
+03-06 11:13:28.503  4174  4594 I WQDeepFilterNet: DeepFilterNet filter开始执行(IO线程)
+03-06 11:13:29.047  4174  4174 I WQDeepFilterNet: 选中音频: Restaurant noise, index=2
+03-06 11:13:29.095  4174  4174 I WQDeepFilterNet: 开始加载原始音频: Restaurant noise
+03-06 11:13:29.147  4174  4174 I WQDeepFilterNet: 原始音频加载完成: Restaurant noise, size=5009454
+03-06 11:13:29.147  4174  4174 I WQDeepFilterNet: 原始音频就绪，播放按钮已启用
+03-06 11:13:29.148  4174  4174 I WQDeepFilterNet: 开始DeepFilterNet降噪处理: Restaurant noise, attenuation=50.0, rawDataSize=5009454
+03-06 11:13:29.148  4174  4594 I WQDeepFilterNet: DeepFilterNet filter开始执行(IO线程)
+03-06 11:13:30.798  4174  4174 I WQDeepFilterNet: 播放按钮点击: isPlaying=false, wantDenoise=false, noisyLoaded=true, filteredLoaded=null, targetMediaId=2131689476_noisy
+03-06 11:13:30.798  4174  4174 I WQDeepFilterNet: 使用目标音频源播放: 2131689476_noisy
+03-06 11:13:30.829  4174  4174 I WQDeepFilterNet: 开始播放: actualMediaId=2131689476_noisy
+03-06 11:13:37.089  4174  4174 I WQDeepFilterNet: 降噪切换: enabled=true
+03-06 11:13:37.089  4174  4174 I WQDeepFilterNet: 降噪切换: targetMediaId=2131689476_filtered, isLoaded=false, isPlaying=true, isFilterRunning=true
+03-06 11:13:37.089  4174  4174 I WQDeepFilterNet: 降噪切换: 降噪任务已在后台运行中，等待完成
+03-06 11:13:41.915  4174  4596 I WQDeepFilterNet: DeepFilterNet filter执行完成, result=size=5009454
+03-06 11:13:41.916  4174  4174 I WQDeepFilterNet: 降噪音频添加到播放器: filteredId=2131689476_filtered, bufferSize=5010240
+03-06 11:13:41.917  4174  4174 I WQDeepFilterNet: 降噪音频加载完成: Restaurant noise, 所有已加载源: [2131689473_noisy, 2131689476_noisy, 2131689476_filtered]
+03-06 11:13:41.933  4174  4174 I WQDeepFilterNet: 后台降噪完成，自动切换到降噪音频
+03-06 11:13:49.734  4174  4174 I WQDeepFilterNet: 降噪切换: enabled=false
+03-06 11:13:49.735  4174  4174 I WQDeepFilterNet: 降噪切换: targetMediaId=2131689476_noisy, isLoaded=true, isPlaying=true, isFilterRunning=false
+03-06 11:13:49.743  4174  4174 I WQDeepFilterNet: 降噪切换: 播放中切换到 2131689476_noisy
+03-06 11:13:58.648  4174  4174 I WQDeepFilterNet: 降噪切换: enabled=true
+03-06 11:13:58.649  4174  4174 I WQDeepFilterNet: 降噪切换: targetMediaId=2131689476_filtered, isLoaded=true, isPlaying=true, isFilterRunning=false
+03-06 11:13:58.658  4174  4174 I WQDeepFilterNet: 降噪切换: 播放中切换到 2131689476_filtered
+03-06 11:14:05.796  4174  4174 I WQDeepFilterNet: 播放按钮点击: isPlaying=true, wantDenoise=true, noisyLoaded=true, filteredLoaded=true, targetMediaId=2131689476_filtered
+03-06 11:14:05.800  4174  4174 I WQDeepFilterNet: 已暂停播放
+

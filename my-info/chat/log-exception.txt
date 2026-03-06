@@ -1,0 +1,20 @@
+---------------------------- PROCESS ENDED (26353) for package com.kaleyra.androiddeepfilternet ----------------------------
+---------------------------- PROCESS STARTED (26797) for package com.kaleyra.androiddeepfilternet ----------------------------
+2026-03-06 10:44:15.513 26797-26797 AndroidRuntime          com.kaleyra.androiddeepfilternet     E  FATAL EXCEPTION: main (Explain with AI)
+                                                                                                    Process: com.kaleyra.androiddeepfilternet, PID: 26797
+                                                                                                    java.lang.OutOfMemoryError: Failed to allocate a 40729936 byte allocation with 25165824 free bytes and 35MB until OOM, target footprint 256264752, growth limit 268435456
+                                                                                                    	at java.nio.HeapByteBuffer.<init>(HeapByteBuffer.java:54)
+                                                                                                    	at java.nio.HeapByteBuffer.<init>(HeapByteBuffer.java:49)
+                                                                                                    	at java.nio.ByteBuffer.allocate(ByteBuffer.java:282)
+                                                                                                    	at com.kaleyra.androiddeepfilternet.filter.DefaultDeepAudioFilter.filter(DeepAudioFilter.kt:77)
+                                                                                                    	at com.kaleyra.androiddeepfilternet.filter.DefaultDeepAudioFilter$filter$1.invokeSuspend(Unknown Source:16)
+                                                                                                    	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+                                                                                                    	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+                                                                                                    	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:111)
+                                                                                                    	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:99)
+                                                                                                    	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:585)
+                                                                                                    	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:802)
+                                                                                                    	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:706)
+                                                                                                    	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:693)
+                                                                                                    	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [StandaloneCoroutine{Cancelling}@2e0aa4e, Dispatchers.Main]
+---------------------------- PROCESS ENDED (26797) for package com.kaleyra.androiddeepfilternet ----------------------------

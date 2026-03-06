@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        private const val TAG = "DeepFilterNetPlayer"
+        private const val TAG = "WQDeepFilterNet"
         private const val SEEK_OFFSET_MS = 5_000L
     }
 
@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
     private var filterJob: Job? = null
     @Volatile private var isLoading = false
     @Volatile private var loadingIndex = -1
+    @Volatile private var isFilterRunning = false
 
     // 已加载的音频源缓存: mediaId -> 是否已加载
     private val loadedAudioSources = mutableMapOf<String, Boolean>()
@@ -105,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 初始化DeepFilterNet
+        Log.i(TAG, "onCreate: 初始化DeepFilterNet和资源加载器")
         deepAudioFilter = DefaultDeepAudioFilter(applicationContext)
         rawResourceLoader = AndroidRawResourceLoader()
 
@@ -187,7 +189,20 @@ class MainActivity : AppCompatActivity() {
 
                         // 第二阶段：后台加载降噪音频（不阻塞播放）
                         filterJob = coroutineScope.launch {
-                            loadFilteredAudioSource(currentLoadIndex)
+                            isFilterRunning = true
+                            try {
+                                loadFilteredAudioSource(currentLoadIndex)
+                                // 加载完成后，如果正在播放且降噪开启，自动切换到降噪音频
+                                if (audioPlayer.isPlaying() && isDenoiseEnabled) {
+                                    val fId = getMediaSourceId(audioItems[currentLoadIndex].resId, true)
+                                    if (loadedAudioSources[fId] == true) {
+                                        audioPlayer.start(id = fId, resetPosition = false)
+                                        Log.i(TAG, "后台降噪完成，自动切换到降噪音频")
+                                    }
+                                }
+                            } finally {
+                                isFilterRunning = false
+                            }
                         }
                     } else {
                         Log.e(TAG, "原始音频加载失败")
@@ -223,24 +238,31 @@ class MainActivity : AppCompatActivity() {
         btnPlayPause.setOnClickListener {
             if (selectedIndex < 0) return@setOnClickListener
             val item = audioItems[selectedIndex]
-            val mediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
+            val wantDenoise = isDenoiseEnabled
+            val mediaId = getMediaSourceId(item.resId, wantDenoise)
+            val noisyId = getMediaSourceId(item.resId, false)
+            val filteredId = getMediaSourceId(item.resId, true)
 
-            Log.i(TAG, "播放按钮点击, isPlaying=${audioPlayer.isPlaying()}, mediaId=$mediaId, loaded=${loadedAudioSources[mediaId]}")
+            Log.i(TAG, "播放按钮点击: isPlaying=${audioPlayer.isPlaying()}, wantDenoise=$wantDenoise, " +
+                "noisyLoaded=${loadedAudioSources[noisyId]}, filteredLoaded=${loadedAudioSources[filteredId]}, " +
+                "targetMediaId=$mediaId")
 
             if (audioPlayer.isPlaying()) {
                 audioPlayer.pause()
                 btnPlayPause.text = "播放"
+                Log.i(TAG, "已暂停播放")
             } else {
                 // 如果降噪音频还没加载好，先用原始音频播放
                 val actualMediaId = if (loadedAudioSources[mediaId] == true) {
+                    Log.i(TAG, "使用目标音频源播放: $mediaId")
                     mediaId
                 } else {
-                    val fallbackId = getMediaSourceId(item.resId, false)
-                    Log.i(TAG, "降噪音频未就绪，使用原始音频: $fallbackId")
-                    fallbackId
+                    Log.i(TAG, "降噪音频未就绪(loaded=${loadedAudioSources[filteredId]})，使用原始音频: $noisyId")
+                    noisyId
                 }
                 audioPlayer.start(id = actualMediaId, resetPosition = false)
                 btnPlayPause.text = "暂停"
+                Log.i(TAG, "开始播放: actualMediaId=$actualMediaId")
             }
         }
 
@@ -328,18 +350,28 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        Log.i(TAG, "开始DeepFilterNet降噪处理: ${item.name}, attenuation=$currentAttenuationLevel")
+        Log.i(TAG, "开始DeepFilterNet降噪处理: ${item.name}, attenuation=$currentAttenuationLevel, rawDataSize=${rawData.size}")
 
-        val filteredBuffer = withContext(Dispatchers.IO) {
-            deepAudioFilter.filter(rawData, currentAttenuationLevel)
-        }
+        try {
+            val filteredBuffer = withContext(Dispatchers.IO) {
+                Log.i(TAG, "DeepFilterNet filter开始执行(IO线程)")
+                val result = deepAudioFilter.filter(rawData, currentAttenuationLevel)
+                Log.i(TAG, "DeepFilterNet filter执行完成, result=${if (result != null) "size=${result.remaining()}" else "null"}")
+                result
+            }
 
-        if (filteredBuffer != null) {
-            audioPlayer.addMediaSource(filteredId, filteredBuffer.array())
-            loadedAudioSources[filteredId] = true
-            Log.i(TAG, "降噪音频加载完成: ${item.name}")
-        } else {
-            Log.e(TAG, "降噪处理失败: ${item.name}")
+            if (filteredBuffer != null) {
+                val bufferArray = filteredBuffer.array()
+                Log.i(TAG, "降噪音频添加到播放器: filteredId=$filteredId, bufferSize=${bufferArray.size}")
+                audioPlayer.addMediaSource(filteredId, bufferArray)
+                loadedAudioSources[filteredId] = true
+                Log.i(TAG, "降噪音频加载完成: ${item.name}, 所有已加载源: ${loadedAudioSources.keys}")
+            } else {
+                Log.e(TAG, "降噪处理失败(filter返回null): ${item.name}")
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.e(TAG, "降噪处理异常: ${item.name}, error=${e.message}", e)
         }
     }
 
@@ -372,13 +404,46 @@ class MainActivity : AppCompatActivity() {
                 if (newEnabled != isDenoiseEnabled) {
                     isDenoiseEnabled = newEnabled
                     updateDenoiseButtonText()
+                    Log.i(TAG, "降噪切换: enabled=$isDenoiseEnabled")
 
-                    // 如果正在播放，切换到对应的音频源
-                    if (audioPlayer.isPlaying() && selectedIndex >= 0) {
+                    if (selectedIndex >= 0) {
                         val item = audioItems[selectedIndex]
-                        val mediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
-                        if (loadedAudioSources[mediaId] == true) {
-                            audioPlayer.start(id = mediaId, resetPosition = false)
+                        val targetMediaId = getMediaSourceId(item.resId, isDenoiseEnabled)
+                        val isTargetLoaded = loadedAudioSources[targetMediaId] == true
+                        Log.i(TAG, "降噪切换: targetMediaId=$targetMediaId, isLoaded=$isTargetLoaded, isPlaying=${audioPlayer.isPlaying()}, isFilterRunning=$isFilterRunning")
+
+                        if (isTargetLoaded) {
+                            // 目标音频已加载，直接切换
+                            if (audioPlayer.isPlaying()) {
+                                audioPlayer.start(id = targetMediaId, resetPosition = false)
+                                Log.i(TAG, "降噪切换: 播放中切换到 $targetMediaId")
+                            }
+                            // 如果暂停状态，下次点播放时会用新的mediaId
+                        } else if (isDenoiseEnabled) {
+                            // 降噪音频未加载
+                            if (isFilterRunning) {
+                                // 已有降噪任务在运行中，不要取消它，等它完成即可
+                                Log.i(TAG, "降噪切换: 降噪任务已在后台运行中，等待完成")
+                            } else {
+                                // 没有降噪任务在运行，启动新的
+                                Log.i(TAG, "降噪切换: 降噪音频未加载且无运行中任务，开始后台加载")
+                                filterJob = coroutineScope.launch {
+                                    isFilterRunning = true
+                                    try {
+                                        loadFilteredAudioSource(selectedIndex)
+                                        // 加载完成后，如果正在播放且降噪仍然开启，切换
+                                        if (audioPlayer.isPlaying() && isDenoiseEnabled) {
+                                            val fId = getMediaSourceId(audioItems[selectedIndex].resId, true)
+                                            if (loadedAudioSources[fId] == true) {
+                                                audioPlayer.start(id = fId, resetPosition = false)
+                                                Log.i(TAG, "降噪切换: 后台加载完成，切换到降噪音频")
+                                            }
+                                        }
+                                    } finally {
+                                        isFilterRunning = false
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -404,23 +469,32 @@ class MainActivity : AppCompatActivity() {
                     updateAttenuationButtonText()
 
                     // 衰减级别改变只影响降噪音频，需要清除filtered缓存并重新生成
+                    Log.i(TAG, "衰减级别变更: newLevel=$newLevel")
                     if (selectedIndex >= 0) {
                         // 清除所有filtered源
                         val keysToRemove = loadedAudioSources.keys.filter { it.endsWith("_filtered") }
                         keysToRemove.forEach { loadedAudioSources.remove(it) }
+                        Log.i(TAG, "已清除filtered缓存: $keysToRemove")
 
-                        // 取消之前的降噪任务，重新启动
+                        // 取消之前的降噪任务（衰减参数变了，必须重新计算）
                         filterJob?.cancel()
+                        isFilterRunning = false
                         filterJob = coroutineScope.launch {
-                            loadFilteredAudioSource(selectedIndex)
+                            isFilterRunning = true
+                            try {
+                                loadFilteredAudioSource(selectedIndex)
 
-                            // 如果正在播放且降噪开启，切换到新的降噪音频
-                            if (audioPlayer.isPlaying() && isDenoiseEnabled) {
-                                val item = audioItems[selectedIndex]
-                                val filteredId = getMediaSourceId(item.resId, true)
-                                if (loadedAudioSources[filteredId] == true) {
-                                    audioPlayer.start(id = filteredId, resetPosition = false)
+                                // 如果正在播放且降噪开启，切换到新的降噪音频
+                                if (audioPlayer.isPlaying() && isDenoiseEnabled) {
+                                    val item = audioItems[selectedIndex]
+                                    val filteredId = getMediaSourceId(item.resId, true)
+                                    if (loadedAudioSources[filteredId] == true) {
+                                        audioPlayer.start(id = filteredId, resetPosition = false)
+                                        Log.i(TAG, "衰减变更: 降噪完成，切换到新降噪音频")
+                                    }
                                 }
+                            } finally {
+                                isFilterRunning = false
                             }
                         }
                     }

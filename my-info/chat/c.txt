@@ -8,3 +8,23 @@ good, the ui is updated, but:
 a. the header of the page i circled red block the title(DeepFilterNet降噪播放器), you can remove the header
 b.  the check icon is not so good, reference @Mp3Fragment.java @fragment_mp3.xml for that theme and style
 c. the play button is not clickable(not working), even i have selected the audio from the list(shown in image), check and fix it, making it work, and make sure the denoising and 衰减 work properly
+
+//>>cmd 
+adb logcat | grep -E "WQDeepFilterNet"
+
+//>>chat 
+ok, the play button can play, see image. but:
+a. but i don't think the 降噪 buton work, as you can see from the image, i have enabled the denoising, i don't hear any change about the denoising, but keeping playing the original audio sound which has noise, fix it
+b. add necessary logs, so that i can use @c.txt#L13 to see all the logs related, and i can share the logs to you for better solution to fix the problem in iteam a 
+
+//>chat 
+logs work, now:
+a. see logs @l2.txt , i test many times the turn the denoising on and off, but failed(though audio is actually keeping playing), it doesn't denoising, until this time
+@l2.txt#L71 , why, and fix it. please make sure it can immediately denoise audio in realtime after i turn on the denoising.
+b. btw, carefully check 衰减 button is actually working, say i select different value of Attenuation Level, it should work properly, making sure this function work
+
+
+When denoise is toggled ON and filter is already running: don't cancel it, just wait for it to finish. The filter job already has logic to auto-switch to filtered audio once complete.
+
+Filter starts in background (~10s)
+
