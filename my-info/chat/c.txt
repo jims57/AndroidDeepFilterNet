@@ -28,3 +28,10 @@ When denoise is toggled ON and filter is already running: don't cancel it, just 
 
 Filter starts in background (~10s)
 
+//>>goal 
+my goal is to make the model(DeepFilterNet) can immediately(or near-realtime) to be ready to denoise audio streams, we want good UX
+
+//>>chat 
+good, it can wait the filter to finish @l3.txt#L19 in @l3.txt . but:
+a.my question is that why it need to wait the filter to finish, is it possible to make it faster or immediate take effect? since our rnnoise based android app can immediately(or near realtime) to load and ready to denoise audio streams. but why doesn't this @deep_filter_mobile_model support this speed? i find the model is located in @raw which belongs to andother android app @noise-filter ? is it because this causing the slow to load the model and preparation? if yes, try to make all related logic inside the single android app @app .my goal is   @c.txt#L32 
+

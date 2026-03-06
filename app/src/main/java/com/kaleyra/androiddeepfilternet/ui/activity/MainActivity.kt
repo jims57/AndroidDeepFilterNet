@@ -19,6 +19,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kaleyra.androiddeepfilternet.R
 import com.kaleyra.androiddeepfilternet.filter.DefaultDeepAudioFilter
+import com.kaleyra.androiddeepfilternet.filter.NativeDeepFilterNetLoader
+import com.kaleyra.noise_filter.DeepFilterNet
 import com.kaleyra.androiddeepfilternet.player.AudioPlayer
 import com.kaleyra.androiddeepfilternet.player.AudioProgressCallback
 import com.kaleyra.androiddeepfilternet.player.DefaultAudioPlayer
@@ -76,6 +78,8 @@ class MainActivity : AppCompatActivity() {
     // DeepFilterNet降噪
     private lateinit var deepAudioFilter: DefaultDeepAudioFilter
     private lateinit var rawResourceLoader: AndroidRawResourceLoader
+    private var preLoadedModel: DeepFilterNet? = null
+    @Volatile private var isModelReady = false
 
     // 降噪状态
     private var isDenoiseEnabled = false
@@ -110,6 +114,21 @@ class MainActivity : AppCompatActivity() {
         deepAudioFilter = DefaultDeepAudioFilter(applicationContext)
         rawResourceLoader = AndroidRawResourceLoader()
 
+        // 预加载 DeepFilterNet 模型（启动时就开始，这样用户操作时模型已经准备好）
+        val modelLoadStartTime = System.currentTimeMillis()
+        Log.i(TAG, "onCreate: 开始预加载DeepFilterNet模型...")
+        val loader = NativeDeepFilterNetLoader(applicationContext)
+        coroutineScope.launch {
+            try {
+                preLoadedModel = loader.loadDeepFilterNet()
+                isModelReady = true
+                val elapsed = System.currentTimeMillis() - modelLoadStartTime
+                Log.i(TAG, "onCreate: DeepFilterNet模型预加载完成, 耗时=${elapsed}ms, frameLength=${preLoadedModel?.frameLength}")
+            } catch (e: Exception) {
+                Log.e(TAG, "onCreate: DeepFilterNet模型预加载失败: ${e.message}", e)
+            }
+        }
+
         // 初始化播放器
         audioPlayer = DefaultAudioPlayer(applicationContext)
         audioPlayer.setAudioProgressCallback(object : AudioProgressCallback {
@@ -140,6 +159,11 @@ class MainActivity : AppCompatActivity() {
         coroutineScope.cancel()
         audioPlayer.release()
         rawAudioCache.clear()
+        // 释放预加载的模型
+        preLoadedModel?.release()
+        preLoadedModel = null
+        isModelReady = false
+        Log.i(TAG, "onDestroy: 已释放 DeepFilterNet 模型")
     }
 
     private fun setupUI() {
@@ -354,10 +378,18 @@ class MainActivity : AppCompatActivity() {
 
         try {
             val filteredBuffer = withContext(Dispatchers.IO) {
-                Log.i(TAG, "DeepFilterNet filter开始执行(IO线程)")
-                val result = deepAudioFilter.filter(rawData, currentAttenuationLevel)
-                Log.i(TAG, "DeepFilterNet filter执行完成, result=${if (result != null) "size=${result.remaining()}" else "null"}")
-                result
+                val model = preLoadedModel
+                if (model != null && isModelReady) {
+                    Log.i(TAG, "DeepFilterNet filterWithModel开始执行(使用预加载模型, IO线程)")
+                    val result = deepAudioFilter.filterWithModel(model, rawData, currentAttenuationLevel)
+                    Log.i(TAG, "DeepFilterNet filterWithModel执行完成, result=${if (result != null) "size=${result.remaining()}" else "null"}")
+                    result
+                } else {
+                    Log.i(TAG, "DeepFilterNet模型未就绪(isModelReady=$isModelReady), 使用filter加载新模型")
+                    val result = deepAudioFilter.filter(rawData, currentAttenuationLevel)
+                    Log.i(TAG, "DeepFilterNet filter执行完成, result=${if (result != null) "size=${result.remaining()}" else "null"}")
+                    result
+                }
             }
 
             if (filteredBuffer != null) {

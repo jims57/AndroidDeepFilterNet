@@ -31,6 +31,16 @@ interface DeepAudioFilter {
      * during processing.
      */
     suspend fun filter(sourceAudio: ByteArray, attenuationLimit: Float): ByteBuffer?
+
+    /**
+     * 使用预加载的DeepFilterNet模型实例进行降噪处理（不会创建/释放模型，速度更快）
+     *
+     * @param model 预加载的DeepFilterNet模型实例
+     * @param sourceAudio 原始音频数据
+     * @param attenuationLimit 衰减级别 0f-100f
+     * @return 降噪后的音频数据，失败返回null
+     */
+    suspend fun filterWithModel(model: DeepFilterNet, sourceAudio: ByteArray, attenuationLimit: Float): ByteBuffer?
 }
 
 /**
@@ -66,54 +76,7 @@ class DefaultDeepAudioFilter(
             currentDeepFilterNet = deepFilterNetLoader.loadDeepFilterNet()
             currentDeepFilterNet.setAttenuationLimit(attenuationLimit)
 
-            // The required frame length for processing with DeepFilterNet.
-            val frameLength = currentDeepFilterNet.frameLength.toInt()
-            // Chunk the input audio data into segments required by DeepFilterNet.
-            val rawAudioChunks = audioChunker.chunk(sourceAudio, frameLength)
-
-            // Calculate the total size needed for the output audio buffer.
-            val outputBufferSize = rawAudioChunks.size * frameLength
-            // Allocate a ByteBuffer to store the combined filtered audio data.
-            val outputAudioBuffer = ByteBuffer.allocate(outputBufferSize)
-            outputAudioBuffer.order(ByteOrder.LITTLE_ENDIAN) // Set byte order
-
-            // Allocates a new direct ByteBuffer for each call. This ensures thread-safety
-            // for `frameProcessingBuffer` as each concurrent filter operation gets its own isolated buffer.
-            //
-            // If `filter` is called extremely frequently, repeatedly allocating direct ByteBuffers
-            // can lead to performance overhead from allocation/deallocation and may exhaust the
-            // limited direct memory pool. In such high-throughput scenarios, consider optimizing by:
-            // 1. Reusing a single `frameProcessingBuffer` at the class level and externally
-            //    serializing calls to `filter` on this instance (e.g., using a Mutex).
-            // 2. Implementing a custom pool of direct ByteBuffers for reuse.
-            val frameProcessingBuffer = ByteBuffer.allocateDirect(frameLength).apply {
-                order(ByteOrder.LITTLE_ENDIAN) // Set byte order to match DeepFilterNet's expectation
-            }
-
-            // Iterate over each chunk of raw audio data.
-            for ((i, chunk) in rawAudioChunks.withIndex()) {
-                frameProcessingBuffer.clear() // Reset buffer's position and limit for new data.
-                frameProcessingBuffer.put(chunk) // Put the current audio chunk into the buffer.
-                frameProcessingBuffer.flip() // Prepare the buffer for reading by native code (DeepFilterNet).
-
-                // Skip processing the initial chunk, as it likely contains file header information (e.g., WAV header).
-                // This is done for simplicity.
-                if (i != 0) {
-                    // Process the audio frame using the DeepFilterNet model.
-                    // The 'processFrame' method modifies the buffer in-place.
-                    currentDeepFilterNet.processFrame(frameProcessingBuffer)
-                }
-
-                frameProcessingBuffer.rewind() // Reset buffer's position to the beginning to read processed data.
-
-                outputAudioBuffer.put(frameProcessingBuffer) // Append the processed frame to the output buffer.
-
-                coroutineContext.ensureActive() // Check the coroutines is still active
-            }
-
-            outputAudioBuffer.flip() // Prepare the output buffer for reading (e.g., by an audio player).
-            Log.d(TAG, "Audio loaded and processed successfully. Ready for playback.")
-            outputAudioBuffer
+            processAudioFrames(currentDeepFilterNet, sourceAudio)
         } catch (e: Exception) {
             coroutineContext.ensureActive() // Re-throw the CancellationException if the coroutine was cancelled.
             Log.e(TAG, "Error during audio processing with DeepFilterNet: ${e.message}", e)
@@ -125,5 +88,64 @@ class DefaultDeepAudioFilter(
                 currentDeepFilterNet?.release()
             }
         }
+    }
+
+    override suspend fun filterWithModel(model: DeepFilterNet, sourceAudio: ByteArray, attenuationLimit: Float): ByteBuffer? {
+        return try {
+            model.setAttenuationLimit(attenuationLimit)
+            processAudioFrames(model, sourceAudio)
+        } catch (e: Exception) {
+            coroutineContext.ensureActive()
+            Log.e(TAG, "Error during audio processing with pre-loaded model: ${e.message}", e)
+            null
+        }
+        // 注意：不释放model，由调用方管理生命周期
+    }
+
+    /**
+     * 核心音频帧处理逻辑（公共方法，被filter和filterWithModel共用）
+     */
+    private suspend fun processAudioFrames(deepFilterNet: DeepFilterNet, sourceAudio: ByteArray): ByteBuffer {
+        // The required frame length for processing with DeepFilterNet.
+        val frameLength = deepFilterNet.frameLength.toInt()
+        // Chunk the input audio data into segments required by DeepFilterNet.
+        val rawAudioChunks = audioChunker.chunk(sourceAudio, frameLength)
+
+        // Calculate the total size needed for the output audio buffer.
+        val outputBufferSize = rawAudioChunks.size * frameLength
+        // Allocate a ByteBuffer to store the combined filtered audio data.
+        val outputAudioBuffer = ByteBuffer.allocate(outputBufferSize)
+        outputAudioBuffer.order(ByteOrder.LITTLE_ENDIAN) // Set byte order
+
+        // Allocates a new direct ByteBuffer for each call. This ensures thread-safety
+        // for `frameProcessingBuffer` as each concurrent filter operation gets its own isolated buffer.
+        val frameProcessingBuffer = ByteBuffer.allocateDirect(frameLength).apply {
+            order(ByteOrder.LITTLE_ENDIAN) // Set byte order to match DeepFilterNet's expectation
+        }
+
+        // Iterate over each chunk of raw audio data.
+        for ((i, chunk) in rawAudioChunks.withIndex()) {
+            frameProcessingBuffer.clear() // Reset buffer's position and limit for new data.
+            frameProcessingBuffer.put(chunk) // Put the current audio chunk into the buffer.
+            frameProcessingBuffer.flip() // Prepare the buffer for reading by native code (DeepFilterNet).
+
+            // Skip processing the initial chunk, as it likely contains file header information (e.g., WAV header).
+            // This is done for simplicity.
+            if (i != 0) {
+                // Process the audio frame using the DeepFilterNet model.
+                // The 'processFrame' method modifies the buffer in-place.
+                deepFilterNet.processFrame(frameProcessingBuffer)
+            }
+
+            frameProcessingBuffer.rewind() // Reset buffer's position to the beginning to read processed data.
+
+            outputAudioBuffer.put(frameProcessingBuffer) // Append the processed frame to the output buffer.
+
+            coroutineContext.ensureActive() // Check the coroutines is still active
+        }
+
+        outputAudioBuffer.flip() // Prepare the output buffer for reading (e.g., by an audio player).
+        Log.d(TAG, "Audio loaded and processed successfully. Ready for playback.")
+        return outputAudioBuffer
     }
 }
