@@ -2,3 +2,9 @@
 you misunderstand my meaning. i have reverted your above last changes, now:
 a. you reference my another android app @android_use_cpp_demo1 @layout about the ui and interaction, and update my current target android app @androiddeepfilternet @res @src to use the reference android android ui and interaction, but keeping the model @deep_filter_mobile_model and its denoising logic intact
 b. when doing item a, making sure the updated android app can immediately show audio list and can play and denoise the selected audio immediately after the play button is clicked.
+
+//>>chat 
+good, the ui is updated, but:
+a. the header of the page i circled red block the title(DeepFilterNet降噪播放器), you can remove the header
+b.  the check icon is not so good, reference @Mp3Fragment.java @fragment_mp3.xml for that theme and style
+c. the play button is not clickable(not working), even i have selected the audio from the list(shown in image), check and fix it, making it work, and make sure the denoising and 衰减 work properly

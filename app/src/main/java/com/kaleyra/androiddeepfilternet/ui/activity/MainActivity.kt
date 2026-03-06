@@ -161,25 +161,25 @@ class MainActivity : AppCompatActivity() {
             stopPlayback()
             btnPlayPause.isEnabled = false
 
-            // 后台加载选中音频的noisy和filtered数据
-            if (isLoading) {
-                Log.i(TAG, "正在加载中，更新目标索引: $position")
-                return@AudioListAdapter
-            }
-
-            isLoading = true
+            // 取消之前的加载任务，启动新的加载
             loadJob?.cancel()
             loadJob = coroutineScope.launch {
                 try {
+                    isLoading = true
                     while (true) {
                         val currentLoadIndex = loadingIndex
                         loadAudioSource(currentLoadIndex)
                         if (loadingIndex == currentLoadIndex) break
                         Log.i(TAG, "检测到新选择，切换加载: $loadingIndex")
                     }
+                    // 加载完成，启用播放按钮
+                    btnPlayPause.isEnabled = true
+                    Log.i(TAG, "音频加载完成，播放按钮已启用")
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    Log.i(TAG, "加载任务被取消")
+                    throw e
                 } finally {
                     isLoading = false
-                    btnPlayPause.isEnabled = true
                 }
             }
         }
@@ -404,7 +404,7 @@ class MainActivity : AppCompatActivity() {
             if (position == selectedIndex) {
                 holder.textView.setTextColor(0xFF007AFF.toInt())
                 holder.textView.setCompoundDrawablesWithIntrinsicBounds(0, 0,
-                    android.R.drawable.checkbox_on_background, 0)
+                    R.drawable.ic_check_blue, 0)
             } else {
                 holder.textView.setTextColor(0xFF000000.toInt())
                 holder.textView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
