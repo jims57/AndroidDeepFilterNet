@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AirplanemodeActive
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
@@ -152,6 +153,7 @@ fun NoiseFilterDemoScreen(
                     NoisyAudioSource.Airplane -> "Airplane noise"
                     NoisyAudioSource.Crowd -> "Crowd noise"
                     NoisyAudioSource.Restaurant -> "Restaurant noise"
+                    NoisyAudioSource.ClientAudio -> "Client audio"
                 },
                 subtitle = if (uiState.isNoiseFilterEnabled) "Denoised" else "Noisy",
                 playbackState = uiState.playbackState,
@@ -254,6 +256,14 @@ fun AudioSourceSelection(
                         icon = Icons.Filled.Restaurant,
                         onItemClick =  {
                             onSourceSelected(NoisyAudioSource.Restaurant)
+                        }
+                    )
+                    AudioSourceItem(
+                        isSelected = selectedSource == NoisyAudioSource.ClientAudio,
+                        text = "Client audio",
+                        icon = Icons.Filled.Audiotrack,
+                        onItemClick =  {
+                            onSourceSelected(NoisyAudioSource.ClientAudio)
                         }
                     )
                 }

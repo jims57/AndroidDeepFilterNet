@@ -22,7 +22,8 @@ import kotlinx.coroutines.launch
 enum class NoisyAudioSource {
     Airplane,
     Crowd,
-    Restaurant
+    Restaurant,
+    ClientAudio
 }
 
 data class PlaybackState(
@@ -35,7 +36,7 @@ data class PlaybackState(
 }
 
 data class NoiseFilterUiState(
-    val isAudioReady: Boolean = false,
+    val isAudioReady: Boolean = true,
     val selectedAudioSource: NoisyAudioSource = NoisyAudioSource.Airplane,
     val isNoiseFilterEnabled: Boolean = false,
     val initialAttenuationLevel: Float = 50f,
@@ -164,9 +165,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun processAudioSources(attenuationLevel: Float) {
         processAudioSourcesJob?.cancel()
         processAudioSourcesJob = viewModelScope.launch {
+            // 停止当前播放，但不隐藏音频列表
+            if (_uiState.value.playbackState.isPlaying) {
+                audioPlayer.pause()
+            }
             _uiState.update { it.copy(
-                isAudioReady = false,
-                playbackState = it.playbackState.copy(isPlaying = false, currentPositionMs = 0L, totalDurationMs = 0L))
+                playbackState = it.playbackState.copy(isPlaying = false))
             }
             audioPlayer.clearMediaSources()
             val application = getApplication<Application>()
@@ -179,10 +183,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val deferredRestaurantBuffer =
                 async { audioVariantGenerator.generateVariants(application,
                     R.raw.restaurant, attenuationLevel) }
-            val (airplaneAudioBuffer, crowdAudioBuffer, restaurantAudioBuffer) = awaitAll(
+            val deferredClientAudioBuffer =
+                async { audioVariantGenerator.generateVariants(application,
+                    R.raw.client_audio_2, attenuationLevel) }
+            val (airplaneAudioBuffer, crowdAudioBuffer, restaurantAudioBuffer, clientAudioBuffer) = awaitAll(
                 deferredAirplaneBuffer,
                 deferredCrowdBuffer,
-                deferredRestaurantBuffer
+                deferredRestaurantBuffer,
+                deferredClientAudioBuffer
             )
             airplaneAudioBuffer?.let { dualBuffer ->
                 audioPlayer.addMediaSource(getMediaSourceId(NoisyAudioSource.Airplane, false), dualBuffer.noisyBuffer.array())
@@ -195,6 +203,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             restaurantAudioBuffer?.let { dualBuffer ->
                 audioPlayer.addMediaSource(getMediaSourceId(NoisyAudioSource.Restaurant, false), dualBuffer.noisyBuffer.array())
                 audioPlayer.addMediaSource(getMediaSourceId(NoisyAudioSource.Restaurant, true), dualBuffer.filteredBuffer.array())
+            }
+            clientAudioBuffer?.let { dualBuffer ->
+                audioPlayer.addMediaSource(getMediaSourceId(NoisyAudioSource.ClientAudio, false), dualBuffer.noisyBuffer.array())
+                audioPlayer.addMediaSource(getMediaSourceId(NoisyAudioSource.ClientAudio, true), dualBuffer.filteredBuffer.array())
             }
             _uiState.update { it.copy(isAudioReady = true) }
         }
