@@ -61,7 +61,8 @@ class MainActivity : AppCompatActivity() {
         AudioItem("Airplane noise", R.raw.airplane),
         AudioItem("Crowd noise", R.raw.crowd),
         AudioItem("Restaurant noise", R.raw.restaurant),
-        AudioItem("Client audio", R.raw.client_audio_2)
+        AudioItem("Client audio", R.raw.client_audio_2),
+        AudioItem("jb_20260303152443_with_bug_16000hz_16bit_1ch", R.raw.jb_20260303152443_with_bug_16000hz_16bit_1ch)
     )
     private var selectedIndex = -1
     private lateinit var adapter: AudioListAdapter

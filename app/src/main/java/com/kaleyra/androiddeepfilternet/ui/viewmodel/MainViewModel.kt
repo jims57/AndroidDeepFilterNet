@@ -186,7 +186,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val deferredClientAudioBuffer =
                 async { audioVariantGenerator.generateVariants(application,
                     R.raw.client_audio_2, attenuationLevel) }
-            val (airplaneAudioBuffer, crowdAudioBuffer, restaurantAudioBuffer, clientAudioBuffer) = awaitAll(
+            val deferredClientAudioBuffer2 =
+                async { audioVariantGenerator.generateVariants(application,
+                    R.raw.jb_20260303152443_with_bug_16000hz_16bit_1ch, attenuationLevel) }
+                    
+            val (airplaneAudioBuffer, crowdAudioBuffer, restaurantAudioBuffer, clientAudioBuffer, clientAudioBuffer2) = awaitAll(
                 deferredAirplaneBuffer,
                 deferredCrowdBuffer,
                 deferredRestaurantBuffer,
